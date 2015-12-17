@@ -1,6 +1,6 @@
 {
 	"compilerOptions": {
-		"target": "ES3",
+		"target": "ES5",
 		"module": "commonjs",
 		"noImplicitAny": true,
 		"removeComments": true,
@@ -10,6 +10,11 @@
 		"sourceRoot": "../source"
 	},
 	"files": [
+		"source/Backend_User.ts",
+		"source/HttpPath.ts",
+		"source/Server.ts",
+		"source/Service.ts",
+		"source/User.ts",
 		"source/exclusive.ts"
 	]
 }
