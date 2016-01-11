@@ -1,17 +1,12 @@
 /// <reference path="Server" />
-/// <reference path="User" />
-
-var http = require('http');
+var fs = require('fs')
+var http = require('http')
+var path = require('path')
+var url = require("url")
 
 module Exclusive {
 	export class Program {
-		
-		private newUser: User
-		constructor() {
-			this.newUser = new User("Molham Khail", "/home/mkhalil/Skrivbord/");
-			console.log(this.newUser.Logs);
-		}
-/*		private server: Server
+		private server: Server
 		constructor() {
 			this.registerKeyEvents()
 			this.server = new Server(8080)
@@ -24,7 +19,7 @@ module Exclusive {
 				process.exit()
 			})
 		}
-*/
+
 	}
 }
 var program = new Exclusive.Program();
