@@ -26,7 +26,7 @@ module Exclusive{
 		 }
 		 
 		 public AddKeyValue(key: string, value: string, result: string): string{
-			 	result += "\"" + key + "\": " + "\"" + value + "\",\n";
+			 	result += "\t\"" + key + "\": \"" + value + "\",\n";
 			 return result;
 		 }
 		
@@ -48,7 +48,7 @@ module Exclusive{
 			else
 				switch (urlPath.Head){
 					case "app":
-						//connection.SendFile(path.join(this.app, urlPath.Tail));
+						//connection.WriteFile(path.join(this.app, urlPath.Tail));
 						break;
 						
 					case "users":
@@ -61,7 +61,7 @@ module Exclusive{
 							if (!urlPath.Tail)
 								connection.Write(this.GetContent(), 200, {'Content-Type': 'application/json'});
 							else
-								connection.SendFile(path.join(this.content, urlPath.Tail.Head));
+								connection.WriteFile(path.join(this.content, urlPath.Tail.Head));
 						}
 						break;
 						
@@ -78,19 +78,16 @@ module Exclusive{
 			if (!httpPath || httpPath.Head.length <= 0){
 				switch (connection.Request.method){
 					case "GET":
-					var users = new User ("m", "q", "q");
-					users.Logs;
 						connection.WriteAllUsers(this.users, connection);
 						break;
 					case "POST":
-						var user: User;
-						user = connection.Receive();
-						if(!user)
+						var newUser = connection.Receive();
+						if(!newUser)
 							connection.Write("Bad Request", 400);
-						else if(!user.Create(connection.Url, this.users))
+						else if(!newUser.Create(connection.Url, this.users))
 							connection.Write("Internal Server Error", 500);
 						else
-							connection.Write(user.ToString(), 200, {'Content-Type': 'application/json'});
+							connection.Write(newUser.ToString(), 200, {'Content-Type': 'application/json'});
 						break;
 				}
 			}
@@ -104,8 +101,7 @@ module Exclusive{
 									connection.Write(user.ToString(), 200, {'Content-Type': 'application/json'});
 									break;
 								case "PUT":
-									var update: User;
-									update = connection.Receive();
+									var update = connection.Receive();
 									if (!update || !user.Update(update))
 										connection.Write("Bad Request", 400);
 									else if (!user.Save())
@@ -117,11 +113,11 @@ module Exclusive{
 							break;
 						case "folders":
 							if (connection.Request.method == "GET")
-								connection.SendFoldersOrLogs(user.Folders);
+								connection.Write(User.Print(user.Folders), 200, {'Content-Type': 'application/json'});
 							break;
 						case "log":
 							if (connection.Request.method == "GET")
-								connection.SendFoldersOrLogs(user.Logs);
+								connection.Write(User.Print(user.Logs), 200, {'Content-Type': 'application/json'});
 							break;
 						default:
 							connection.Write("Not Found", 404);
@@ -145,7 +141,7 @@ module Exclusive{
 						
 					default:
 						if (user.CanRead(httpPath.Tail.Head))
-							user.AddLog(address, connection.Request.method, httpPath, http.STATUS_CODES[connection.SendFile(path.join(this.content, httpPath.Tail.Head))]);
+							user.AddLog(address, connection.Request.method, httpPath, http.STATUS_CODES[connection.WriteFile(path.join(this.content, httpPath.Tail.Head))]);
 						else{
 							connection.Write("Not Found", 404)
 							user.AddLog(address, connection.Request.method, httpPath, http.STATUS_CODES[404]);
@@ -159,9 +155,9 @@ module Exclusive{
 			var directories = Service.getDirectories(this.content);
 			if (directories)
 				for (var i = 0; i < directories.length; i++)
-					result += directories[i] + ",";
+					result += "\t\"" + directories[i] + "\",\n";
 					
-			result = result.slice(0, -1);
+			result = result.slice(0, -2);
 			return result += "\n]";
 		}
 		

@@ -22,11 +22,7 @@ module Exclusive {
 		}
 		private requestCallback(request: any, response: any) {
 			var urlPath = HttpPath.Build(url.parse(request.url).pathname)
-			var connection = new Connection();
-			connection.Url = path.join(request.headers.host, url.parse(request.url, true, true).pathname);
-			connection.Request = request;
-			connection.Response = response;
-			
+			var connection = new Connection(path.join(request.headers.host, url.parse(request.url, true, true).pathname), request, response);
 			var service = new Service(path.join(__dirname, 'data'), "App");
 			if(urlPath && urlPath.Head == "data")
 				service.Process(connection, urlPath.Tail);

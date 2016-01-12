@@ -22,21 +22,12 @@ module Exclusive {
 
 		private logs: string[];
 		get Logs() {
-			var logs: string[] = [];
-			this.path = path.join(__dirname, 'data', 'users', 'demo');
 			if (!this.logs && (this.path && this.path.length > 0)) {
-				//fs.open(path.join(this.path, 'log.csv'), 'rw', (error: any, fd: any) => {
-				//if (!error){
-				console.log(this.path + "/log.csv");
-				fs.readFile(this.path + "/log.csv", 'utf-8', (err: any, data: string) => {
-					if (err) console.log(err);
-					console.log(data);
-					//logs = data.split('\n');
-					this.logs = data.split('\n');
+				User.ReadFile(path.join(this.path, 'log.csv'), (data: string) => {
+					if (data)
+						this.logs = data.split('\n');
 				});
-				//}
-				//this.logs = logs;
-				//});
+
 			}
 			return this.logs;
 		}
@@ -47,18 +38,10 @@ module Exclusive {
 
 		private folders: string[];
 		get Folders() {
-			var folders: string[] = [];
 			if (!this.folders && (this.path && this.path.length > 0)) {
-				fs.open(path.join(this.path, 'content.csv'), 'r', (error: any, fs: any) => {
-					if (!error) {
-						fs.readFile(path.join(this.path, 'content.csv'), 'utf-8', (err: any, data: string) => {
-							if (err) return console.log(err);
-
-							console.log(data);
-							folders = data.split('\n');
-						})
-					}
-					this.folders = folders;
+				User.ReadFile(path.join(this.path, 'content.csv'), (data: string) => {
+					if (data)
+						this.folders = data.split('\n');
 				});
 			}
 			return this.folders;
@@ -78,31 +61,24 @@ module Exclusive {
 		}
 
 		public static OpenUser(name: string, usersPath: string, connection: Connection): User {
-			var backend: Backend_User = null;
-			if (backend = Backend_User.ReadBackend(path.join(usersPath, name))) {
-				var user = new User(name, usersPath, connection);
-				user.backend = backend;
-				return user;
-			}
-			else
-				return null;
+			var userResult: User;
+			Backend_User.ReadBackend(path.join(usersPath, name), (backendResult: Backend_User) => {
+				if (backendResult) {
+					userResult = new User(name, usersPath, connection);
+					userResult.backend = backendResult;
+				}
+			});
+			return userResult;
 		}
 
 		public AddLog(address: any, method: string, httpPath: any, status: string): boolean {
-			var result: boolean;
 			var time = new Date
-			try {
-				var message = time.toISOString().replace(/T/, ' ').replace(/\..+/, '') + ',' + address.eth0[0].family + ':' + address.eth0[0].address + "," + address.eth0[1].family + ':' + address.eth0[1].address + "," + method + "," + httpPath.ToString() + "," + status + '\n';
-				fs.appendFile(path.join(this.path, 'log.csv'), message, 'utf-8', (err: any) => {
-					if (err) throw err;
-				});
-				console.log(message);
-				result = true;
-			} catch (exception) {
-				console.log(exception);
-				result = false;
-			}
-			return result;
+			var message = time.toISOString().replace(/T/, ' ').replace(/\..+/, '') + ',' + address.eth0[0].family + ':' + address.eth0[0].address + "," + address.eth0[1].family + ':' + address.eth0[1].address + "," + method + "," + httpPath.ToString() + "," + status + '\n';
+			User.AppendFile(path.join(this.path, 'log.csv'), message, (result: boolean) => {
+				if (!result)
+					return false;
+			});
+			return true;
 		}
 
 		public CanRead(folder: string): boolean {
@@ -119,23 +95,17 @@ module Exclusive {
 		public Save(): boolean {
 			var folders: string[];
 			(this.folders) ? folders = this.folders : folders = [];
-			folders.push("\n");
-			fs.appendFile(path.join(this.path, 'content.csv'), folders, 'utf-8', (error: any) => {
-				if (error) {
-					console.log(error);
+			User.AppendFile(path.join(this.path, 'content.csv'), folders.toString(), (result: boolean) => {
+				if (!result)
 					return false;
-				}
 			});
-			fs.writeFile(path.join(this.path, 'meta.json'), this.backend.ToString(), 'utf-8', (error: any) => {
-				if (error) {
-					console.log(error);
+			User.WriteFile(path.join(this.path, 'meta.json'), this.backend.ToString(), (result: boolean) => {
+				if (!result)
 					return false;
-				}
 			});
 
 			return true;
 		}
-
 		public Update(user: User): boolean {
 			if (user) {
 				this.backend.Company = user.backend.Company;
@@ -159,7 +129,55 @@ module Exclusive {
 		}
 
 		public ToString(): string {
-			return "{\n\"Name\": \"" + this.name + ",\n\"Company\": \"" + this.backend.Company + ",\n\"Contact\": \"" + this.backend.Contact + ",\n\"Crm\": \"" + this.backend.Crm + ",\nUrl\": \"" + this.url + ",\n\"LogUrl\": \"" + this.LogUrl + ",\n\"Folders\": \"" + this.folders + ",\n\"FoldersUrl\": \"" + this.FoldersUrl + "\n}";;
+			return "{\n\t\"Name\": \"" + this.name + "\",\n\t\"Company\": \"" + this.backend.Company + "\",\n\t\"Contact\": \"" + this.backend.Contact + "\",\n\t\"Crm\": \"" + this.backend.Crm +
+				"\",\n\t\"Url\": \"" + this.url + "\",\n\t\"LogUrl\": \"" + this.LogUrl + "\",\n\t\"Folders\": " + User.Print(this.folders) + ",\n\t\"FoldersUrl\": \"" + this.FoldersUrl + "\"\n}";
+		}
+
+		public static Print(folder: string[]): string {
+			var result = "[\n\t";
+			for (var i = 0; i < folder.length; i++)
+				result += "\"" + folder[i] + "\",\n\t";
+			result = result.slice(0, -3);
+			return result += "\n]";
+		}
+		
+		private static AppendFile(filePath: string, dataToAppend: string, onCompleted: (result: boolean) => void) {
+			fs.appendFile(filePath, dataToAppend, 'utf-8', (error: any) => {
+				if (error) {
+					console.log(error);
+					onCompleted(false);
+				}
+				else {
+					console.log("Appending Done");
+					onCompleted(true);
+				}
+			});
+		}
+
+		private static WriteFile(filePath: string, dataToWrite: string, onCompleted: (result: boolean) => void) {
+			fs.writeFile(filePath, dataToWrite, 'utf-8', (error: any) => {
+				if (error) {
+					console.log(error);
+					onCompleted(false);
+				}
+				else {
+					console.log("Writing Done");
+					onCompleted(true);
+				}
+			});
+		}
+
+		private static ReadFile(filePath: string, onCompleted: (result: string) => void) {
+			fs.readFile(filePath, 'utf-8', (error: any, data: string) => {
+				if (error) {
+					console.log(error);
+					onCompleted(null);
+				}
+				else {
+					console.log(data);
+					onCompleted(data);
+				}
+			});
 		}
 	}
 }
