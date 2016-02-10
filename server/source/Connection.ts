@@ -39,6 +39,34 @@ module Exclusive {
 			this.response.write(toPrint);
 			this.response.end();
 		}
+		private SendData(stats: any, data:any, file: string): number{
+			var contentType = Connection.ContentType(file);
+			if (stats.size) {
+				if ((this.request.headers['range']) && (this.request.headers.range.split('=')[0] == "bytes")) {
+					var positions = this.request.headers.range.replace(/bytes=/, "").split("-");
+					var start = parseInt(positions[0], 10);
+					var total = stats.size;
+					var end = positions[1] ? parseInt(positions[1], 10) : total - 1;
+					var chunksize = (end - start) + 1;
+					this.response.writeHead(206, { 'Content-Range': 'bytes' + start + "-" + end + "/" + total, 'Accept-Ranges': 'bytes', 'Content-Length': chunksize, 'Content-Type': contentType });
+					var stream = fs.createReadStream(file, { start: start, end: end })
+						.on("open", () => {
+							stream.pipe(this.response);
+						}).on("error", (err: any) => {
+							this.response.end(err);
+						});
+						return 206
+				}
+				else {
+					this.Write(data, 200, { 'Accept-Ranges': 'bytes', 'Content-Lenth': stats.size, 'Content-Type': contentType });
+						return 200;
+				}
+			}
+			else {
+				this.Write(data, 200, { 'Content-Type': contentType });
+					return 200;
+			}
+		}
 		public WriteFile(file: string, log?: boolean, onCompleted?: (statusCode: number) => void) {
 			if (this.requestPath.substr(-1) == "/")
 					file = path.join(file, 'index.html');
@@ -57,35 +85,9 @@ module Exclusive {
 				else {
 					fs.readFile(file, (error: any, data: any) => {
 						if (data) {
-							var contentType = Connection.ContentType(file);
-							if (stats.size) {
-								if ((this.request.headers['range']) && (this.request.headers.range.split('=')[0] == "bytes")) {
-									var positions = this.request.headers.range.replace(/bytes=/, "").split("-");
-									var start = parseInt(positions[0], 10);
-									var total = stats.size;
-									var end = positions[1] ? parseInt(positions[1], 10) : total - 1;
-									var chunksize = (end - start) + 1;
-									this.response.writeHead(206, { 'Content-Range': 'bytes' + start + "-" + end + "/" + total, 'Accept-Ranges': 'bytes', 'Content-Length': chunksize, 'Content-Type': contentType });
-									var stream = fs.createReadStream(file, { start: start, end: end })
-										.on("open", () => {
-											stream.pipe(this.response);
-										}).on("error", (err: any) => {
-											this.response.end(err);
-										});
-									if (onCompleted)
-										onCompleted(206);
-								}
-								else {
-									this.Write(data, 200, { 'Accept-Ranges': 'bytes', 'Content-Lenth': stats.size, 'Content-Type': contentType });
-									if (onCompleted)
-										onCompleted(200);
-								}
-							}
-							else {
-								this.Write(data, 200, { 'Content-Type': contentType });
-								if (onCompleted)
-									onCompleted(200);
-							}
+							var statusCode = this.SendData(stats, data, file);
+							if (onCompleted)
+								onCompleted(statusCode);
 						}
 						else {
 							if (log) {
@@ -101,7 +103,7 @@ module Exclusive {
 						}
 					});
 				}
-				}
+			}
 			});
 		}
 		public Receive(onCompleted: (result: User) => void) {
