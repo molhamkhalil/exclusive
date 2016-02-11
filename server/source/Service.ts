@@ -28,9 +28,9 @@ module Exclusive {
 				switch (urlPath.Head) {
 					case "app":
 						if (urlPath.Tail)
-							connection.WriteFile(path.join(this.app, urlPath.Tail.ToString()));
+							connection.NewWriteFile(path.join(this.app, urlPath.Tail.ToString()));
 						else
-							connection.WriteFile(this.app);
+							connection.NewWriteFile(this.app);
 						break;
 					case "users":
 						connection.Authenticate((authenticated: boolean) => {
@@ -45,7 +45,7 @@ module Exclusive {
 									if (!urlPath.Tail)
 										connection.Write(Service.ToJSON(DataStore.Content), 200, { 'Content-Type': 'application/json; charset=UTF-8' });
 									else
-										connection.WriteFile(path.join(this.content, urlPath.Tail.ToString()));
+										connection.NewWriteFile(path.join(this.content, urlPath.Tail.ToString()));
 							}
 						});
 						break;

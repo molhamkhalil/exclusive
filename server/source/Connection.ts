@@ -39,7 +39,7 @@ module Exclusive {
 			this.response.write(toPrint);
 			this.response.end();
 		}
-		private SendData(stats: any, data:any, file: string): number{
+		private SendData(stats: any, data:any, file: string): number {
 			var contentType = Connection.ContentType(file);
 			if (stats.size) {
 				if ((this.request.headers['range']) && (this.request.headers.range.split('=')[0] == "bytes")) {
@@ -195,6 +195,76 @@ module Exclusive {
 				".xml": "application/xml",
 				".zip": "application/zip"};
 			return (path.extname(file) in contentTypes) ? contentTypes[path.extname(file)] : null;
+		}
+		
+		public NewWriteFile(file: string, log?: boolean, onCompleted?: (statusCode: number) => void){
+			if (this.requestPath.substr(-1) == "/"){
+				if (!fs.existsSync(path.join(file, 'index.html'))){
+					this.SendFodlerWithouIndex(file, (statusCode: number) => {
+						if (onCompleted)
+							onCompleted(statusCode);
+						this.response.end();
+						return;
+					});
+				}
+				else
+					file = path.join(file, 'index.html');
+			}
+			fs.stat(file, (error: any, stats: any) => {
+				if (error) {
+					this.Write("", 404, { 'Content-Type': 'text/html' });
+					if (onCompleted)
+						onCompleted(404);
+				}
+				else {
+				if (stats.isDirectory()) {
+					this.Write("Redirecting", 301, { 'Location': this.requestUrl + "/" });
+					if (onCompleted)
+						onCompleted(301);
+				}
+				else {
+					fs.readFile(file, (error: any, data: any) => {
+						if (data) {
+							var statusCode = this.SendData(stats, data, file);
+							if (onCompleted)
+								onCompleted(statusCode);
+						}
+						else {
+							if (log) {
+								this.Write("Moved Permanently", 301, { 'Content-Type': 'text/html' });
+								if (onCompleted)
+									onCompleted(301);
+							}
+							else {
+								this.Write("Not Found", 404, { 'Content-Type': 'text/html' });
+								if (onCompleted)
+									onCompleted(404);
+							}
+						}
+					});
+				}
+			}
+			});
+		}
+		
+		private SendFodlerWithouIndex(file: string, onCompleted:(statusCode: number) => void, log?: boolean) {
+			var contents: string[] = fs. readdirSync(file);
+			contents.forEach(content => {
+				var contentPath = path.join(file, content);
+				var stats = fs.statSync(contentPath);
+				if (stats.isFile()) {
+					var data = fs.readFileSync(contentPath);
+					var statusCode = this.SendData(stats, data, contentPath);
+					if (onCompleted)
+						onCompleted(statusCode);
+				}
+				else if (stats.isDirectory()) {
+					if (!log)
+						this.NewWriteFile(contentPath);
+					else
+						this.NewWriteFile(contentPath, log, onCompleted);
+				}
+			});
 		}
 	}
 }
